@@ -16,7 +16,7 @@ class TeamManager:
         self.data_cog = self.bot.get_cog("RscData")
 
     @commands.command(pass_context=True, no_pm=True)
-    async def teamList(self, ctx, teamName: str):
+    async def roster(self, ctx, teamName: str):
         team_role = self.team_for_name(ctx, teamName)
         if team_role is None:
             await self.bot.say(
