@@ -110,23 +110,6 @@ class Transactions:
         else:
             await self.bot.say("Either {0} isn't on a team right now or his current team can't be found".format(user.name))
 
-    @commands.command(pass_context=True, no_pm=True)
-    async def relegate(self, ctx, user : discord.Member, teamRole : discord.Role):
-        server_dict = self.CONFIG_COG.get_server_dict(ctx)
-        oldTeamRole = self.get_current_team_role(ctx, user)
-        if oldTeamRole is not None:
-            if await self.get_franchise_role(server_dict, ctx.message.server, oldTeamRole) != await self.get_franchise_role(server_dict, ctx.message.server, teamRole):
-                await self.bot.say(":x: {0} is not in the same franchise as {1}'s current team, the {2}".format(teamRole.name, user.name, oldTeamRole.name))
-                return
-            await self.remove_player_from_team(ctx, server_dict, user, oldTeamRole)
-            channel = await self.add_player_to_team(ctx, server_dict, user, teamRole)
-            if channel:
-                message = "{0} was relegated to the {1}".format(user.mention, teamRole.mention)
-                await self.bot.send_message(channel, message)
-                await self.bot.say("Done")
-        else:
-            await self.bot.say("Either {0} isn't on a team right now or his current team can't be found".format(user.name))
-
     def get_gm_name(self, teamRole):
         try:
             return re.findall(r'(?<=\().*(?=\))', teamRole.name)[0].split('-')[0].strip()
