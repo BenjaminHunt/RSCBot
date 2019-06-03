@@ -22,6 +22,7 @@ class TransactionConfiguration:
         self.load_data()
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_roles=True)
     async def genericAnnounce(self, ctx, message):
         """Posts the message to the transaction log channel"""
         server = ctx.message.server
@@ -36,6 +37,7 @@ class TransactionConfiguration:
             await self.bot.say(":x: Transaction log channel not set")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def addFreeAgentRole(self, ctx, tier, role : discord.Role):
         """Used to set the free agent roles for the different tiers"""
         server_dict = self.get_server_dict(ctx)
@@ -49,6 +51,7 @@ class TransactionConfiguration:
             await self.bot.say(":x: Error adding info to the free agent role dictionary")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def getFreeAgentRoles(self, ctx):
         """Used to get all free agent roles for the different tiers"""
         server = ctx.message.server
@@ -69,6 +72,7 @@ class TransactionConfiguration:
             await self.bot.say(":x: No free agent roles are set in the dictionary")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def clearFreeAgentRoles(self, ctx):
         """Used to clear the free agent role dictionary"""
         server_dict = self.get_server_dict(ctx)
@@ -82,6 +86,7 @@ class TransactionConfiguration:
             await self.bot.say(":x: Something went wrong when trying to clear the free agent role dictionary")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def setTransactionLogChannel(self, ctx, tlog : discord.Channel):
         """Assigns the specified channel as the channel where all transactions will be announced"""
         server_dict = self.get_server_dict(ctx)
@@ -94,6 +99,7 @@ class TransactionConfiguration:
             await self.bot.say(":x: Error setting transaction log channel to {0}".format(tlog.mention))
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def getTransactionLogChannel(self, ctx):
         """Gets the transaction-log channel"""
         channel = await self.get_transaction_channel(self.get_server_dict(ctx), ctx.message.server)
@@ -102,6 +108,7 @@ class TransactionConfiguration:
              
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def unsetTransactionLogChannel(self, ctx):
         """Unassignes the transaction-log channel"""
         server = ctx.message.server

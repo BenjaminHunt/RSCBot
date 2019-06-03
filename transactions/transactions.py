@@ -2,6 +2,7 @@ import discord
 import re
 
 from discord.ext import commands
+from cogs.utils import checks
 
 class Transactions:
     """Used to set franchise and role prefixes and give to members in those franchises or with those roles"""
@@ -14,6 +15,7 @@ class Transactions:
         self.TEAM_MANAGER = self.bot.get_cog("TeamManager")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_roles=True)
     async def sign(self, ctx, user : discord.Member, teamRole : discord.Role):
         """Assigns the team role, franchise role and prefix to a user when they are signed and posts to the assigned channel"""
         if teamRole in user.roles:
@@ -37,6 +39,7 @@ class Transactions:
                 await self.bot.say(":x: Free agent role not found in server")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_roles=True)
     async def cut(self, ctx, user : discord.Member, teamRole : discord.Role, freeAgentRole : discord.Role = None):
         """Removes the team role and franchise role. Adds the free agent prefix to a user and posts to the assigned channel"""
         server_dict = self.CONFIG_COG.get_server_dict(ctx)
@@ -56,6 +59,7 @@ class Transactions:
                 await self.bot.say(":x: Free agent role not found in server")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_roles=True)
     async def trade(self, ctx, user : discord.Member, newTeamRole : discord.Role, user2 : discord.Member, newTeamRole2 : discord.Role):
         """Swaps the teams of the two players and announces the trade in the assigned channel"""
         if newTeamRole in user.roles:
@@ -76,6 +80,7 @@ class Transactions:
             await self.bot.say("Done")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_roles=True)
     async def sub(self, ctx, user : discord.Member, teamRole : discord.Role):
         """Adds the team role to the user and posts to the assigned channel"""
         server_dict = self.CONFIG_COG.get_server_dict(ctx)
@@ -94,6 +99,7 @@ class Transactions:
                 await self.bot.say("Done")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_roles=True)
     async def promote(self, ctx, user : discord.Member, teamRole : discord.Role):
         server_dict = self.CONFIG_COG.get_server_dict(ctx)
         oldTeamRole = self.get_current_team_role(ctx, user)

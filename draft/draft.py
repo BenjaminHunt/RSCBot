@@ -2,6 +2,7 @@ import discord
 import re
 
 from discord.ext import commands
+from cogs.utils import checks
 
 class Draft:
     """Used to draft players onto teams and give the the appropriate roles"""
@@ -15,6 +16,7 @@ class Draft:
         self.TRANS_COG = self.bot.get_cog("Transactions")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_roles=True)
     async def draft(self, ctx, user : discord.Member, teamRole : discord.Role, round: int, pick: int):
         """Assigns the team role and league role to a user when they are drafted and posts to the assigned channel"""
         server_dict = self.CONFIG_COG.get_server_dict(ctx)

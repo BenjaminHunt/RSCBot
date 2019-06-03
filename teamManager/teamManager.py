@@ -1,6 +1,7 @@
 import re
 
 from discord.ext import commands
+from cogs.utils import checks
 
 
 class TeamManager:
@@ -35,6 +36,7 @@ class TeamManager:
             await self.bot.say("No tiers set up in this server.")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def addTier(self, ctx, tier_name: str):
         tiers = self._tiers(ctx)
         tiers.append(tier_name)
@@ -42,6 +44,7 @@ class TeamManager:
         await self.bot.say("Done.")
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def removeTier(self, ctx, tier_name: str):
         tiers = self._tiers(ctx)
         try:

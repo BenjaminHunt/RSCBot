@@ -15,6 +15,7 @@ class PrefixManager:
     CONFIG_DEFAULT = {}
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def setPrefixes(self, ctx, *gmNameAndPrefix):
         """Used to set prefixes for the given role name"""
         server = ctx.message.server
@@ -48,6 +49,7 @@ class PrefixManager:
         
 
     @commands.command(pass_context=True, no_pm=True)
+    @checks.admin_or_permissions(manage_server=True)
     async def clearPrefixes(self, ctx):
         """Used to clear the prefix dictionary"""
         server = ctx.message.server
