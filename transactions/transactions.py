@@ -13,6 +13,7 @@ class Transactions:
         self.bot = bot
         self.CONFIG_COG = self.bot.get_cog("TransactionConfiguration")
         self.TEAM_MANAGER = self.bot.get_cog("TeamManager")
+        self.prefix_cog = self.bot.get_cog("PrefixManager")
 
     @commands.command(pass_context=True, no_pm=True)
     @checks.admin_or_permissions(manage_roles=True)
@@ -151,7 +152,7 @@ class Transactions:
             if leagueRole is not None:
                 franchiseRole = await self.get_franchise_role(server_dict, ctx.message.server, teamRole)
                 if franchiseRole is not None:
-                    prefix = await self.get_prefix(server_dict, teamRole)
+                    prefix = await self.get_prefix(ctx, server_dict, teamRole)
                     if prefix is not None:
                         await self.bot.change_nickname(user, "{0} | {1}".format(prefix, self.get_player_nickname(user)))
                         await self.bot.add_roles(user, teamRole, leagueRole, franchiseRole)
@@ -167,7 +168,7 @@ class Transactions:
         if channel is not None:
             franchiseRole = await self.get_franchise_role(server_dict, ctx.message.server, teamRole)
             if franchiseRole is not None:
-                prefix = await self.get_prefix(server_dict, teamRole)
+                prefix = await self.get_prefix(ctx, server_dict, teamRole)
                 if prefix is not None:
                     await self.bot.remove_roles(user, teamRole, franchiseRole)
                     return channel
@@ -196,9 +197,9 @@ class Transactions:
         except LookupError:
             await self.bot.say('GM name not found from role {0}'.format(teamRole.name))
 
-    async def get_prefix(self, server_dict, teamRole):
+    async def get_prefix(self, ctx, server_dict, teamRole):
         try:
-            prefix_dict = server_dict.setdefault("Prefixes", {})
+            prefix_dict = self.prefix_cog._prefixes(ctx)
             try:
                 gmName = self.get_gm_name(teamRole)
                 try:
