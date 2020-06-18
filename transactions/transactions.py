@@ -232,6 +232,9 @@ class Transactions(commands.Cog):
         #     await ctx.send(":x: {0} is already on the {1}".format(user.mention, team_name))
         #     return
 
+        if self.team_manager_cog.is_gm(user):
+            return True  # GM should already have these roles
+
         leagueRole = self.team_manager_cog._find_role_by_name(ctx, "League")
         if leagueRole is not None:
             prefix = await self.prefix_cog._get_franchise_prefix(ctx, franchise_role)
@@ -242,20 +245,24 @@ class Transactions(commands.Cog):
                 await user.edit(nick="{0} | {1}".format(prefix, self.get_player_nickname(user)))
                 await user.add_roles(tier_role, leagueRole, franchise_role)
 
+        return True
+
 
     async def remove_player_from_team(self, ctx, user, team_name):
         if self.team_manager_cog.is_gm(user):
-            return  # do not remove roles for GMs
+            return True  # do not remove roles for GMs
 
         franchise_role, tier_role = await self.team_manager_cog._roles_for_team(ctx, team_name)
         if franchise_role not in user.roles or tier_role not in user.roles:
             await ctx.send(":x: {0} is not on the {1}".format(user.mention, team_name))
-            return
+            return False
 
         if franchise_role is not None:
             prefix = await self.prefix_cog._get_franchise_prefix(ctx, franchise_role)
             if prefix is not None:
                 await user.remove_roles(franchise_role)
+        
+        return True
 
     async def find_user_free_agent_roles(self, ctx, user):
         free_agent_roles = await self.get_free_agent_roles(ctx)
