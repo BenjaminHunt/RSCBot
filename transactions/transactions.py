@@ -244,6 +244,9 @@ class Transactions(commands.Cog):
 
 
     async def remove_player_from_team(self, ctx, user, team_name):
+        if self.team_manager_cog.is_gm(user):
+            return  # do not remove roles for GMs
+
         franchise_role, tier_role = await self.team_manager_cog._roles_for_team(ctx, team_name)
         if franchise_role not in user.roles or tier_role not in user.roles:
             await ctx.send(":x: {0} is not on the {1}".format(user.mention, team_name))
