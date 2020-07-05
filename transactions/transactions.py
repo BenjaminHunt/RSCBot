@@ -246,6 +246,7 @@ class Transactions(commands.Cog):
                 currentTier = await self.team_manager_cog.get_current_tier_role(ctx, user)
                 if currentTier is not None and currentTier != tier_role:
                     await user.remove_roles(currentTier)
+                # TODO: use self._set_player_prefix()
                 await user.edit(nick="{0} | {1}".format(prefix, self.get_player_nickname(user)))
                 await user.add_roles(tier_role, leagueRole, franchise_role)
 
@@ -287,6 +288,10 @@ class Transactions(commands.Cog):
                 free_agent_roles.append(role)
         free_agent_roles.append(self.team_manager_cog._find_role_by_name(ctx, "Free Agent"))
         return free_agent_roles
+
+    # TODO: uncomment this
+    # async def _set_player_prefix(self, player: discord.Member, prefix: str):
+    #     return await self.team_manager_cog.set_player_prefix(player, prefix)
 
     def get_player_nickname(self, user : discord.Member):
         return self.team_manager_cog.get_player_nickname(user)
