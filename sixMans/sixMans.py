@@ -174,7 +174,7 @@ class SixMans(commands.Cog):
         await ctx.send(embed=self._format_queue_info(ctx, six_mans_queue))
 
     @commands.guild_only()
-    @commands.command(aliases=["cq"])
+    @commands.command(aliases=["cq", "status"])
     async def checkQueue(self, ctx):
         await self._pre_load_queues(ctx)
         six_mans_queue = self._get_queue(ctx)
@@ -664,6 +664,7 @@ class SixMans(commands.Cog):
 
         await ctx.channel.send(embed=embed)
 
+
     async def has_perms(self, ctx):
         helper_role = await self._helper_role(ctx)
         if ctx.author.guild_permissions.administrator:
@@ -795,7 +796,6 @@ class SixMans(commands.Cog):
             game.captains[0] = random.sample(list(game.blue), 1)[0] #Swap Blue team captain
         elif opposing_captain in game.orange:
             game.captains[1] = random.sample(list(game.orange), 1)[0] #Swap Orange team captain
-
 
     def _give_points(self, players_dict, score):
         player_id = score["Player"]

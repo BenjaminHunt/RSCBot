@@ -1,5 +1,7 @@
 import discord
 import re
+import datetime
+import threading
 
 from redbot.core import Config
 from redbot.core import commands
@@ -156,9 +158,9 @@ class Transactions(commands.Cog):
                 franchise_role, team_tier_role = await self.team_manager_cog._roles_for_team(ctx, team_name)
                 gm = self._get_gm_name(ctx, franchise_role, True)
 
-                is_gm_sub = gm == user
+                is_gm_sub = self.team_manager_cog.is_gm(user)
                 gm_subs = await self._gm_subs(ctx)
-                begin_substitution = (not (franchise_role in user.roles and team_tier_role in user.roles)) or (is_gm_sub and gm in gm_subs)
+                begin_substitution = (not (franchise_role in user.roles and team_tier_role in user.roles)) or (is_gm_sub and gm not in gm_subs)
 
                 # End Substitution
                 if not begin_substitution:
@@ -180,6 +182,7 @@ class Transactions(commands.Cog):
                 # Begin Substitution:
                 else:
                     if is_gm_sub:
+                        gm_subs = await self._gm_subs(ctx)
                         gm_subs.append(gm)
                         await self._save_gm_subs(ctx, gm_subs)
                     elif free_agent_role in user.roles:
@@ -188,17 +191,27 @@ class Transactions(commands.Cog):
                     await user.add_roles(franchise_role, team_tier_role, leagueRole)
                     gm = self._get_gm_name(ctx, franchise_role)
                     message = "{0} was signed to a temporary contract by the {1} ({2} - {3})".format(user.mention, team_name, gm, team_tier_role.name)
+
+
+                    # Schedule end-of substitution command:
+                    # now = datetime.datetime.now()
+                    # end_time = now + datetime.timedelta(seconds=10)
+                    # seconds_timer = (end_time - now).total_seconds()
+                    
+                    # threading.Timer(seconds_timer, self.sub, args=(ctx, user, team_name))
+                    # print('here')
+
                 await trans_channel.send(message)
                 await ctx.send("Done")
 
     @commands.guild_only()
-    @commands.command()
+    @commands.command(aliases=["getGMSubs"])
     @checks.admin_or_permissions()
     async def viewGMSubs(self, ctx):
         """View all gms registered as currently subsituting for a team"""
         gm_subs = await self._gm_subs(ctx)
         if gm_subs:
-            await ctx.send("The following GMs are currently subsituting:\n```{}```".format("\n".join(gm_subs)))
+            await ctx.send("The following GMs are currently subsituting ({0}):\n```{1}```".format(len(gm_subs), "\n".join(gm_subs)))
         else:
             await ctx.send("No GMs are currently substituing.")
 
