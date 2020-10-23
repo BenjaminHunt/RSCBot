@@ -5,7 +5,7 @@ from redbot.core import Config
 from redbot.core import commands
 from redbot.core import checks
 
-defaults = {"TransChannel": None}
+defaults = {"TransChannel": None, "GM_Subs": []}
 
 class Transactions(commands.Cog):
     """Used to set franchise and role prefixes and give to members in those franchises or with those roles"""
@@ -62,7 +62,6 @@ class Transactions(commands.Cog):
             except LookupError:
                 await ctx.send(":x: Free agent role not found in server")
             return
-
 
     @commands.guild_only()
     @commands.command()
@@ -151,14 +150,22 @@ class Transactions(commands.Cog):
         This command is also used to end substitution periods"""
         trans_channel = await self._trans_channel(ctx)
         free_agent_role = self.team_manager_cog._find_role_by_name(ctx, "Free Agent")
-        if trans_channel is not None:
+        if trans_channel:
             leagueRole = self.team_manager_cog._find_role_by_name(ctx, "League")
             if leagueRole is not None:
                 franchise_role, team_tier_role = await self.team_manager_cog._roles_for_team(ctx, team_name)
-                
+                gm = self._get_gm_name(ctx, franchise_role, True)
+
+                is_gm_sub = gm == user
+                gm_subs = await self._gm_subs(ctx)
+                begin_substitution = (not (franchise_role in user.roles and team_tier_role in user.roles)) or (is_gm_sub and gm in gm_subs)
+
                 # End Substitution
-                if franchise_role in user.roles and team_tier_role in user.roles:
-                    if free_agent_role in user.roles:
+                if not begin_substitution:
+                    if is_gm_sub:
+                        gm_subs.remove(gm)
+                        await self._save_gm_subs(ctx, gm_subs)
+                    elif free_agent_role in user.roles:
                         await user.remove_roles(franchise_role)
                         fa_tier_role = self.team_manager_cog._find_role_by_name(ctx, "{0}FA".format(team_tier_role))
                         if not fa_tier_role in user.roles:
@@ -167,12 +174,15 @@ class Transactions(commands.Cog):
                             await user.add_roles(player_tier)
                     else:
                         await user.remove_roles(team_tier_role)
-                    gm = self._get_gm_name(ctx, franchise_role, True)
+                    
                     message = "{0} has finished their time as a substitute for the {1} ({2} - {3})".format(user.name, team_name, gm, team_tier_role.name)
                 
                 # Begin Substitution:
                 else:
-                    if free_agent_role in user.roles:
+                    if is_gm_sub:
+                        gm_subs.append(gm)
+                        await self._save_gm_subs(ctx, gm_subs)
+                    elif free_agent_role in user.roles:
                         player_tier = await self.get_tier_role_for_fa(ctx, user)
                         await user.remove_roles(player_tier)
                     await user.add_roles(franchise_role, team_tier_role, leagueRole)
@@ -180,6 +190,17 @@ class Transactions(commands.Cog):
                     message = "{0} was signed to a temporary contract by the {1} ({2} - {3})".format(user.mention, team_name, gm, team_tier_role.name)
                 await trans_channel.send(message)
                 await ctx.send("Done")
+
+    @commands.guild_only()
+    @commands.command()
+    @checks.admin_or_permissions()
+    async def viewGMSubs(self, ctx):
+        """View all gms registered as currently subsituting for a team"""
+        gm_subs = await self._gm_subs(ctx)
+        if gm_subs:
+            await ctx.send("The following GMs are currently subsituting:\n```{}```".format("\n".join(gm_subs)))
+        else:
+            await ctx.send("No GMs are currently substituing.")
 
     @commands.guild_only()
     @commands.command()
@@ -230,6 +251,7 @@ class Transactions(commands.Cog):
         await self._save_trans_channel(ctx, None)
         await ctx.send("Done")
 
+
     async def add_player_to_team(self, ctx, user, team_name):
         franchise_role, tier_role = await self.team_manager_cog._roles_for_team(ctx, team_name)
         # if franchise_role in user.roles and tier_role in user.roles:
@@ -251,7 +273,6 @@ class Transactions(commands.Cog):
                 await user.add_roles(tier_role, leagueRole, franchise_role)
 
         return True
-
 
     async def remove_player_from_team(self, ctx, user, team_name):
         if self.team_manager_cog.is_gm(user):
@@ -320,3 +341,10 @@ class Transactions(commands.Cog):
 
     async def _save_trans_channel(self, ctx, trans_channel):
         await self.config.guild(ctx.guild).TransChannel.set(trans_channel)
+
+    async def _gm_subs(self, ctx):
+        return await self.config.guild(ctx.guild).GM_Subs()
+
+    async def _save_gm_subs(self, ctx, gm_subs):
+        await self.config.guild(ctx.guild).GM_Subs.set(gm_subs)
+
