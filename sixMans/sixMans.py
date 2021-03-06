@@ -236,7 +236,7 @@ class SixMans(commands.Cog):
                 break
             await self._add_to_queue(member, six_mans_queue)
         if six_mans_queue._queue_full():
-            await self._randomize_teams(ctx, six_mans_queue)
+            await self._select_teams(ctx, six_mans_queue)
 
     @commands.guild_only()
     @commands.command(aliases=["queue"])
@@ -257,7 +257,7 @@ class SixMans(commands.Cog):
 
         await self._add_to_queue(player, six_mans_queue)
         if six_mans_queue._queue_full():
-            await self._randomize_teams(ctx, six_mans_queue)
+            await self._select_teams(ctx, six_mans_queue)
 
     @commands.guild_only()
     @commands.command(aliases=["dq", "lq", "leaveq", "leaveQ", "unqueue", "unq", "uq"])
@@ -969,7 +969,7 @@ class SixMans(commands.Cog):
             embed.set_thumbnail(url=player.avatar_url)
         return embed
 
-    async def _randomize_teams(self, ctx, six_mans_queue):
+    async def _select_teams(self, ctx, six_mans_queue):
         game = await self._create_game(ctx, six_mans_queue)
         if game is None:
             return False
@@ -980,26 +980,18 @@ class SixMans(commands.Cog):
                 if player in queue.queue:
                     await self._remove_from_queue(player, queue)
 
-        orange = random.sample(game.players, 3)
-        for player in orange:
-            await game.add_to_orange(player)
-            await game.voiceChannels[1].set_permissions(player, connect=True)
-        
-        blue = list(game.players)
-        for player in blue:
-            await game.add_to_blue(player)
-            await game.voiceChannels[0].set_permissions(player, connect=True)
+        if True: # TODO: add other methods of player selection (i.e. captains)
+            await game.shuffle_players()
 
-        game.reset_players()
-        game.get_new_captains_from_teams()
-
-        await self._display_game_info(ctx, game, six_mans_queue)
+        embed = await self._get_game_info_embed(ctx, game, six_mans_queue)
+        lobby_info_msg = await game.textChannel.send(embed=embed)
+        await lobby_info_msg.message.add_reaction("\U0000F500")  # :twisted_rightwards_arrows:
 
         self.games.append(game)
         await self._save_games(ctx, self.games)
         return True
 
-    async def _display_game_info(self, ctx, game, six_mans_queue):
+    async def _get_game_info_embed(self, ctx, game, six_mans_queue):
         helper_role = await self._helper_role(ctx)
         await game.textChannel.send("{}\n".format(", ".join([player.mention for player in game.players])))
         embed = discord.Embed(title="{0} 6 Mans Game Info".format(six_mans_queue.name), color=discord.Colour.blue())
@@ -1018,7 +1010,7 @@ class SixMans(commands.Cog):
         if helper_role:
             help_message = "If you need any help or have questions please contact someone with the {0} role. ".format(helper_role.mention) + help_message
         embed.add_field(name="Help", value=help_message, inline=False)
-        await game.textChannel.send(embed=embed)
+        return embed
 
     async def _create_game(self, ctx, six_mans_queue):
         if not six_mans_queue._queue_full():
@@ -1257,9 +1249,11 @@ class Game:
         self.blue.add(player)
 
         if self.automove:
-            team_vcs = self.voiceChannels
+            blue_vc, orange_vc = self.voiceChannels
+            await blue_vc.set_permissions(player, connect=True)
+            await orange_vc.set_permissions(player, None)
             try:
-                await player.move_to(team_vcs[0])
+                await player.move_to(blue)
             except:
                 pass
 
@@ -1268,12 +1262,22 @@ class Game:
         self.orange.add(player)
 
         if self.automove:
-            team_vcs = self.voiceChannels
+            blue_vc, orange_vc = self.voiceChannels
+            await blue_vc.set_permissions(player, None)
+            await orange_vc.set_permissions(player, connect=True)
             try:
-                await player.move_to(team_vcs[1])
+                await player.move_to(orange_vc)
             except:
                 pass
-
+    
+    async def shuffle_players(self):
+        for player in random.sample(self.players, int(len(self.players)/2)):
+            await self.add_to_orange(player)
+        for player in self.players:
+            await game.add_to_blue(player)
+        self.reset_players()
+        self.get_new_captains_from_teams()
+        
     def reset_players(self):
         self.players.update(self.orange)
         self.players.update(self.blue)
