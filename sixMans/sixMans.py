@@ -22,8 +22,8 @@ CHANNEL_SLEEP_TIME = 5 if DEBUG else 30     # How long channels will persist aft
 
 QTS_METHODS = [
     Strings.VOTE_TS,
-    Strings.CAPTAINS_TS,
     Strings.RANDOM_TS,
+    Strings.CAPTAINS_TS,
     Strings.BALANCED_TS,
 ]  # , Strings.SHUFFLE_TS, Strings.BALANCED_TS]
 defaults = {
@@ -830,23 +830,19 @@ class SixMans(commands.Cog):
         """Set method for Six Mans team selection (Default: Random)
         
         Valid team selecion methods options:
-        - **random**: selects random teams
-        - **captains**: selects a captain for each team
-        - **vote**: players vote for team selection method after queue pops
-        - ~~**balanced**: creates balanced teams from all participating players~~
-        - ~~**shuffle**: selects random teams, but allows re-shuffling teams after they have been set~~
+        - **Random**: selects random teams
+        - **Captains**: selects a captain for each team
+        - **Balanced (beta)**: creates balanced teams from all participating players
+        - **Vote**: players vote for team selection method after queue pops
         """
         # TODO: Support Captains [captains random, captains shuffle], Balanced
-        team_selection_method = team_selection_method.lower()
-        if team_selection_method not in QTS_METHODS:
-            return await ctx.send("**{}** is not a valid method of team selection.".format(team_selection_method))
+        lower_ts = team_selection_method.lower()
+        for valid_ts in QTS_METHODS:
+            if lower_ts == valid_ts.lower():
+                await self._save_team_selection(ctx.guild, team_selection_method)
+                return await ctx.send("Done.")
 
-        if team_selection_method in ['vote', 'balanced']:
-            return await ctx.send("**{}** is not currently supported as a method of team selection.".format(team_selection_method))
-        
-        await self._save_team_selection(ctx.guild, team_selection_method)
-
-        await ctx.send("Done.")
+        return await ctx.send("**{}** is not a valid method of team selection.".format(team_selection_method))
 
     @commands.guild_only()
     @commands.command(aliases=['getTeamSelection'])
