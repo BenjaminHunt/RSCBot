@@ -12,9 +12,10 @@ from .queue import SixMansQueue
 
 
 SELECTION_MODES  = {
-    0x1F3B2: Strings.RANDOM_TS,     # game_die
-    0x1F1E8: Strings.CAPTAINS_TS,   # C
-    0x0262F: Strings.BALANCED_TS,   # Ying&Yang
+    0x1F3B2: Strings.RANDOM_TS,         # game_die
+    0x1F1E8: Strings.CAPTAINS_TS,       # C
+    0x0262F: Strings.BALANCED_TS,       # Ying&Yang
+    0x1F530: Strings.SELF_PICKING_TS    # Beginner
 }
 
 class Game:
@@ -123,33 +124,35 @@ class Game:
             except:
                 pass
 
-# Team Selection
+    def reset_players(self):
+        self.players.update(self.orange)
+        self.players.update(self.blue)
+
+# Team Selection - Initial call
+    async def process_team_selection_method(self):
+        helper_role = self.helper_role
+        if self.teamSelection.lower() == Strings.VOTE_TS.lower():
+            await self.vote_team_selection()
+        elif self.teamSelection.lower() == Strings.CAPTAINS_TS.lower():
+            await self.captains_pick_teams(helper_role)
+        elif self.teamSelection.lower() == Strings.RANDOM_TS.lower():
+            await self.pick_random_teams()
+        elif self.teamSelection.lower() == Strings.BALANCED_TS.lower():
+            await self.pick_balanced_teams()
+        elif self.teamSelection.lower() == Strings.SELF_PICKING_TS.lower():
+            await self.self_picking_teams()
+        elif self.teamSelection.lower() == Strings.SHUFFLE_TS.lower():
+            await self.shuffle_players()
+        else:
+            return print("you messed up fool: {}".format(self.teamSelection))
+
     async def vote_team_selection(self, helper_role=None):
         # Mentions all players
         embed = self._get_vote_embed()
         self.info_message = await self.textChannel.send(embed=embed)
         reacts = [hex(key) for key in SELECTION_MODES.keys()]
         await self._add_reactions(reacts, self.info_message)
-
-    async def pick_balanced_teams(self):
-        balanced_teams, balance_score = self.get_balanced_teams()
-        self.balance_score = balance_score
-        # Pick random balanced team
-        blue = random.choice(balanced_teams)
-        orange = []
-        for player in self.players:
-            if player not in blue:
-                orange.append(player)
-        for player in blue:
-            await self.add_to_blue(player)
-        for player in orange:
-            await self.add_to_orange(player)
-        
-        self.reset_players()
-        self.get_new_captains_from_teams()
-
-        await self.update_game_info()
-        
+     
     async def pick_random_teams(self):
         self.blue = set()
         self.orange = set()
@@ -162,10 +165,6 @@ class Game:
         self.get_new_captains_from_teams()
 
         await self.update_game_info()
-
-    async def shuffle_players(self):
-        await self.pick_random_teams()
-        await self.info_message.add_reaction(Strings.SHUFFLE_REACT)
 
     async def captains_pick_teams(self, helper_role=None):
         if not helper_role:
@@ -196,22 +195,37 @@ class Game:
         
         await self._add_reactions(self.react_player_picks.keys(), self.info_message)
 
-# Team Selection helpers
-    async def process_team_selection_method(self):
-        helper_role = self.helper_role
-        if self.teamSelection.lower() == Strings.VOTE_TS.lower():
-            await self.vote_team_selection()
-        elif self.teamSelection.lower() == Strings.CAPTAINS_TS.lower():
-            await self.captains_pick_teams(helper_role)
-        elif self.teamSelection.lower() == Strings.RANDOM_TS.lower():
-            await self.pick_random_teams()
-        elif self.teamSelection.lower() == Strings.SHUFFLE_TS.lower():
-            await self.shuffle_players()
-        elif self.teamSelection.lower() == Strings.BALANCED_TS.lower():
-            await self.pick_balanced_teams()
-        else:
-            return print("you messed up fool: {}".format(self.teamSelection))
+    async def pick_balanced_teams(self):
+        balanced_teams, balance_score = self.get_balanced_teams()
+        self.balance_score = balance_score
+        # Pick random balanced team
+        blue = random.choice(balanced_teams)
+        orange = []
+        for player in self.players:
+            if player not in blue:
+                orange.append(player)
+        for player in blue:
+            await self.add_to_blue(player)
+        for player in orange:
+            await self.add_to_orange(player)
+        
+        self.reset_players()
+        self.get_new_captains_from_teams()
 
+        await self.update_game_info()
+   
+    async def self_picking_teams(self, helper_role=None):
+        if not helper_role:
+            helper_role = self.helper_role
+        
+        embed = self._get_self_picking_teams_embed()
+        
+    async def shuffle_players(self):
+        await self.pick_random_teams()
+        await self.info_message.add_reaction(Strings.SHUFFLE_REACT)
+
+# Team Selection helpers
+    # Reaction MGMT
     async def process_captains_pick(self, reaction, user):
         teams_complete = False
         pick_i = len(self.blue)+len(self.orange)-2
@@ -327,86 +341,7 @@ class Game:
             # Next Step: Select Teams
             return voted_mode
 
-    def get_balanced_teams(self):
-        # Get relevent info from helpers
-        player_scores = self.get_player_scores()
-        team_combos = self.get_team_combos()
-
-        # Calc perfectly balanced team based on scores
-        score_total = 0
-        for player, p_data in player_scores.items():
-            score_total += p_data['Score']
-        avg_team_score = score_total/(len(self.players)//2)
-
-        # Determine balanced teams
-        balanced_teams = []
-        balance_diff = None
-        for a_team in team_combos:
-            team_score = 0
-            for player in a_team:
-                team_score += player_scores[player]['Score']
-            
-            team_diff = abs(avg_team_score - team_score)
-            if balance_diff:
-                if team_diff < balance_diff:
-                    balance_diff == team_diff
-                    balanced_teams = [a_team]
-                elif team_diff == balance_diff:
-                    balanced_teams.append(a_team)
-            else:
-                balance_diff == team_diff
-                balanced_teams = [a_team]
-        
-        # return balanced team
-        return balanced_teams, team_diff
-
-    def get_player_scores(self):
-        # Get Player Stats
-        scores = {}
-        ranked_players = 0
-        rank_total = 0
-        wp_players = 0
-        wp_total = 0
-        for player in self.players:
-            player_stats = self.queue.get_player_summary(player)
-
-            rank = 1  # get_player_rank
-            if player_stats:
-                p_wins = player_stats['Wins']
-                p_losses = player_stats['GamesPlayed'] - p_wins
-                qwp = round(self._get_wp(p_wins, p_losses), 2)
-            else:
-                qwp = None
-
-            scores[player] = {"Rank": rank, "QWP": qwp}
-            if rank: 
-                ranked_players += 1
-                rank_total += rank 
-            if qwp:
-                wp_players += 1
-                wp_total += qwp
-        
-        rank_avg = rank_total/ranked_players if ranked_players else 1
-        
-        # Score Players, Avg
-        score_total = 0
-        for player, p_data in scores.items():
-            p_rank = p_data['Rank'] if ('Rank' in p_data and p_data['Rank']) else rank_avg
-            p_wp = p_data['QWP'] if ('QWP' in p_data and p_data['QWP']) else 0.5
-            score_adj = (p_wp * 2) - 1  # +/- 1
-            
-            score = p_rank + score_adj 
-            p_data['Score'] = score
-            score_total += score
-        return scores 
-
-    def get_team_combos(self):
-        players = self.players
-        combos = list(combinations(list(self.players), len(self.players)//2))
-        for combo in combos:
-            combo = list(combos)
-        return combos
-
+    # Embed Generators
     def _get_vote_embed(self, vote=None, winning_vote=None):
         if not vote:
             vote = {}
@@ -493,12 +428,39 @@ class Game:
 
         return embed
     
-    def _hex_i_from_emoji(self, emoji):
-        return ord(emoji)
+    def _get_self_picking_teams_embed(self):
+        on_a_team = len(self.blue) + len(self.orange)
+        unplaced = self.queue.queueMaxSize
 
-    async def report_winner(self, winner):
-        await self.color_embed_for_winners(winner)
-        await self._notify(new_state=Strings.GAME_OVER_GS)
+        all_players = set()
+        all_players.update(self.blue)
+        all_players.update(self.orange)
+
+        unplaced_players = set()
+        for team in [self.blue, self.orange]:
+            for player in team:
+                unplaced_players.remove(player)
+
+        description = "Please react {} to join the blue team, or {} to join the orange team!".format(Strings.BLUE_REACT, Strings.ORANGE_REACT)
+        embed = discord.Embed(
+            title="{} Game | Self-Picking Teams".format(self.textChannel.name.replace('-', ' ').title()[4:]),
+            color=self._get_completion_color(on_a_team, len(unplaced_players)),
+            description=description
+        )
+
+        blue_players = ', '.join(p.mention for p in self.blue) if self.blue else "[No Players]"
+        orange_players = ', '.join(p.mention for p in self.orange) if self.orange else "[No Players]"
+        embed.add_field(name="Blue Team", value=blue_players, inline=False)
+        embed.add_field(name="Orange Team", value=orange_players, inline=False)
+
+        if unplaced_players:
+            embed.add_field(name="Remaining Players", value=', '.join(p.mention for p in self.orange), inline=False)
+        
+        guild_icon_url = self.queue.guild.icon_url
+        if guild_icon_url:
+            embed.set_thumbnail(url=guild_icon_url)
+        
+        return embed
 
     async def color_embed_for_winners(self, winner):
         if self.info_message is not None:
@@ -515,35 +477,7 @@ class Game:
             embed_dict['color'] = color.value
             embed = discord.Embed.from_dict(embed_dict)
             await self.info_message.edit(embed=embed)
-
-    def _get_player_from_reaction_emoji(self, emoji):
-        target_key = None
-        target_value = None
-        for e, player in self.react_player_picks.items():
-            if emoji == int(e, base=16): # or ord(emoji) == ord(e) or str(emoji) == str(e):
-                target_key = e
-                target_value = player
-                break
-        if target_key:
-            del self.react_player_picks[target_key]
-        return target_value
-
-    def _get_pick_reaction(self, int_or_hex):
-        try:
-            if type(int_or_hex) == int:
-                return struct.pack('<I', int_or_hex).decode('utf-32le')
-            if type(int_or_hex) == str:
-                return struct.pack('<I', int(int_or_hex, base=16)).decode('utf-32le') # i == react_hex
-        except:
-            return None
     
-    def _get_pickable_players_str(self):
-        players = ""
-        for react_hex, player in self.react_player_picks.items():
-            react = self._get_pick_reaction(int(react_hex, base=16))
-            players += "{} {}\n".format(react, player.mention)
-        return players
-
     async def update_game_info(self, helper_role=None, invalid=False, prefix='?'):
         if not helper_role:
             helper_role = self.helper_role
@@ -587,15 +521,128 @@ class Game:
         self.info_message = await self.textChannel.send(embed=embed)
         # await self._notify(new_state=Strings.ONGOING_GS)
 
+    # Captains Helpers
+    def _get_player_from_reaction_emoji(self, emoji):
+        target_key = None
+        target_value = None
+        for e, player in self.react_player_picks.items():
+            if emoji == int(e, base=16): # or ord(emoji) == ord(e) or str(emoji) == str(e):
+                target_key = e
+                target_value = player
+                break
+        if target_key:
+            del self.react_player_picks[target_key]
+        return target_value
+
+    def _get_pick_reaction(self, int_or_hex):
+        try:
+            if type(int_or_hex) == int:
+                return struct.pack('<I', int_or_hex).decode('utf-32le')
+            if type(int_or_hex) == str:
+                return struct.pack('<I', int(int_or_hex, base=16)).decode('utf-32le') # i == react_hex
+        except:
+            return None
+    
+    def _get_pickable_players_str(self):
+        players = ""
+        for react_hex, player in self.react_player_picks.items():
+            react = self._get_pick_reaction(int(react_hex, base=16))
+            players += "{} {}\n".format(react, player.mention)
+        return players
+
+    # Balanced Helpers 
+    def get_balanced_teams(self):
+        # Get relevent info from helpers
+        player_scores = self.get_player_scores()
+        team_combos = self.get_team_combos()
+
+        # Calc perfectly balanced team based on scores
+        score_total = 0
+        for player, p_data in player_scores.items():
+            score_total += p_data['Score']
+        avg_team_score = score_total/(len(self.players)//2)
+
+        # Determine balanced teams
+        balanced_teams = []
+        balance_diff = None
+        for a_team in team_combos:
+            team_score = 0
+            for player in a_team:
+                team_score += player_scores[player]['Score']
+            
+            team_diff = abs(avg_team_score - team_score)
+            if balance_diff:
+                if team_diff < balance_diff:
+                    balance_diff == team_diff
+                    balanced_teams = [a_team]
+                elif team_diff == balance_diff:
+                    balanced_teams.append(a_team)
+            else:
+                balance_diff == team_diff
+                balanced_teams = [a_team]
+        
+        # return balanced team
+        return balanced_teams, team_diff
+
+    def get_player_scores(self):
+        # Get Player Stats
+        scores = {}
+        ranked_players = 0
+        rank_total = 0
+        wp_players = 0
+        wp_total = 0
+        for player in self.players:
+            player_stats = self.queue.get_player_summary(player)
+
+            rank = 1  # get_player_rank
+            if player_stats:
+                p_wins = player_stats['Wins']
+                p_losses = player_stats['GamesPlayed'] - p_wins
+                qwp = round(self._get_wp(p_wins, p_losses), 2)
+            else:
+                qwp = None
+
+            scores[player] = {"Rank": rank, "QWP": qwp}
+            if rank: 
+                ranked_players += 1
+                rank_total += rank 
+            if qwp:
+                wp_players += 1
+                wp_total += qwp
+        
+        rank_avg = rank_total/ranked_players if ranked_players else 1
+        
+        # Score Players, Avg
+        score_total = 0
+        for player, p_data in scores.items():
+            p_rank = p_data['Rank'] if ('Rank' in p_data and p_data['Rank']) else rank_avg
+            p_wp = p_data['QWP'] if ('QWP' in p_data and p_data['QWP']) else 0.5
+            score_adj = (p_wp * 2) - 1  # +/- 1
+            
+            score = p_rank + score_adj 
+            p_data['Score'] = score
+            score_total += score
+        return scores 
+
+    def get_team_combos(self):
+        players = self.players
+        combos = list(combinations(list(self.players), len(self.players)//2))
+        for combo in combos:
+            combo = list(combos)
+        return combos
+
 # General Helper Commands
+    async def report_winner(self, winner):
+        await self.color_embed_for_winners(winner)
+        await self._notify(new_state=Strings.GAME_OVER_GS)
+
     def _get_ts_emoji(self):
         for key, value in SELECTION_MODES.items():
             if value == self.teamSelection:
                 return self._get_pick_reaction(key)
 
-    def reset_players(self):
-        self.players.update(self.orange)
-        self.players.update(self.blue)
+    def _hex_i_from_emoji(self, emoji):
+        return ord(emoji)
 
     def get_new_captains_from_teams(self):
         self.captains = []

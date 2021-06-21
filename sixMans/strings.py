@@ -13,11 +13,14 @@ class Strings:
     SHUFFLE_TS = 'Shuffle'
     CAPTAINS_TS = 'Captains'
     BALANCED_TS = 'Balanced (beta)'
+    SELF_PICKING_TS = 'Self-Picking Teams'
 
     # Reactions
-    SHUFFLE_REACT = "\U0001F500"                # :twisted_rightwards_arrows:
-    WHITE_X_REACT = "\U0000274E"                # :negative_squared_cross_mark:
-    WHITE_CHECK_REACT = "\U00002705"            # :white_check_mark:
+    SHUFFLE_REACT = "\U0001F500"        # :twisted_rightwards_arrows:
+    WHITE_X_REACT = "\U0000274E"        # :negative_squared_cross_mark:
+    WHITE_CHECK_REACT = "\U00002705"    # :white_check_mark:
+    ORANGE_REACT = "\U0001F7E0"         # :orange_circle:
+    BLUE_REACT = "\U0001F535"           # :blue_circle:
 
     # Game states
     TEAM_SELECTION_GS = "team selection"
