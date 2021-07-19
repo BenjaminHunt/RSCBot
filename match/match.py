@@ -421,11 +421,9 @@ class Match(commands.Cog):
         message += await self._create_normal_match_message(ctx, match, user_team_name, home, away)
         return message
 
-    # new!
     async def get_team_matches(self, ctx, team_name, match_day=None):
         franchise_role, tier_role = await self.team_manager._roles_for_team(ctx, team_name)
         schedule = await self._schedule(ctx)
-
         tier_schedule = schedule.setdefault(tier_role.name, {})
 
         if match_day:
@@ -441,6 +439,75 @@ class Match(commands.Cog):
                 team_matches.append(match)
         
         return team_matches
+
+    async def get_match(self, ctx, team_a, team_b, match_day):
+        # Match format:
+        # match = {
+        #     'matchDay': match_day,
+        #     'matchDate': match_date,
+        #     'home': home,
+        #     'away': away,
+        #     'roomName': roomName,
+        #     'roomPass': roomPass,
+        #     'stream_details' : <stream details/None>
+        #     'homeScore' : <int>
+        #     'awayScore' : <int>
+        #     'format' : < <BO-x> OR <x-GS> >
+        # }
+        franchise_role, tier_role = await self.team_manager._roles_for_team(ctx, team_a)
+        schedule = await self._schedule(ctx)
+        tier_schedule = schedule.setdefault(tier_role.name, {})
+        tier_matches = tier_schedule.setdefault(str(match_day), [])
+
+        for match in tier_matches:
+            match_teams = [match['home'].lower(), match['away'].lower()]
+            if team_a.lower() in match_teams and team_b.lower() in match_teams:
+                return match
+        return None 
+    
+    async def update_match_data(self, ctx, old_match_data, new_match_data):
+        old_match_day = str(old_match_data['matchDay'])
+        new_match_day = str(new_match_data['matchDay'])
+        
+        franchise_role, tier_role = await self.team_manager._roles_for_team(ctx, old_match_data['home'])
+        tier = tier_role.name
+        schedule = await self._schedule(ctx)
+        tier_schedule = schedule.setdefault(tier, {})
+        tier_matches = tier_schedule.setdefault(str(old_match_day), [])
+
+        match_found = False
+        if old_match_day == new_match_day:
+            # for match_day, matches in tier_schedule.items():
+            for i in len(tier_schedule[old_match_day]):
+                match = tier_schedule[old_match_day][i]
+                if old_match_data['home'] == match['home'] and old_match_data['away'] == match['away']:
+                    tier_schedule[old_match_day][i] = new_match_data
+                    match_found = True
+                    break 
+        
+        if match_found:
+            schedule[tier] = tier_schedule
+            await self._save_matches(ctx, schedule)
+            return True
+        return False
+
+    async def report_match_score(self, ctx, team_a, a_score, b_score, team_b, match_day=None):
+        if not match_day:
+            match_day = await self._match_day(ctx)
+        match_data = await self.get_match(ctx, team_a, team_b, match_day)
+
+        if not match_data:
+            return False 
+        old_match_data = match_data.copy()  # This TECHNICALLY isn't needed because of how match matching logic works
+
+        if team_a == match_data['home']:
+            match_day['homeScore'] = a_score
+            match_day['awayScore'] = b_score
+        else:
+            match_day['homeScore'] = b_score
+            match_day['awayScore'] = a_score
+        
+        return await self.update_match_data(ctx, old_match_data, match_data)
 
     # outdated
     async def set_match_on_stream(self, ctx, match_day, team_name, stream_data):
